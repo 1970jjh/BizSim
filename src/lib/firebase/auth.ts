@@ -1,0 +1,32 @@
+import {
+  signInAnonymously,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile,
+  type User,
+  type UserCredential,
+} from 'firebase/auth'
+import { auth } from './config'
+
+export async function signInAnonymouslyWithNickname(
+  nickname: string
+): Promise<User> {
+  const credential = await signInAnonymously(auth)
+  await updateProfile(credential.user, { displayName: nickname })
+  return credential.user
+}
+
+export async function signInAdmin(
+  email: string,
+  password: string
+): Promise<UserCredential> {
+  return signInWithEmailAndPassword(auth, email, password)
+}
+
+export async function signOutUser(): Promise<void> {
+  return signOut(auth)
+}
+
+export function getCurrentUser(): User | null {
+  return auth.currentUser
+}
