@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { google } from '@ai-sdk/google'
 import { streamText } from 'ai'
 import type { Role } from '@/lib/types/game'
