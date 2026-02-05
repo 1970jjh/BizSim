@@ -272,3 +272,18 @@ export async function initRoundForAllTeams(
     )
   }
 }
+
+export async function getAllRooms(): Promise<
+  Array<RoomDocument & { roomCode: string }>
+> {
+  const snap = await getDocs(collection(db, 'rooms'))
+  return snap.docs.map((d) => ({
+    roomCode: d.id,
+    ...(d.data() as RoomDocument),
+  }))
+}
+
+export async function deleteRoom(roomCode: string): Promise<void> {
+  // Mark room as deleted (full deletion of subcollections requires Cloud Functions)
+  await updateDoc(doc(db, 'rooms', roomCode), { status: 'DELETED' as RoomStatus })
+}
