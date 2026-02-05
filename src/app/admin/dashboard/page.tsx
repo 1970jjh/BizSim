@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { createRoom, subscribeToRoom, getAllTeams, getAllRooms } from '@/lib/firebase/firestore'
+import { createRoom, subscribeToRoom, getAllTeams, getAllRooms, deleteRoom } from '@/lib/firebase/firestore'
 import { signOutUser } from '@/lib/firebase/auth'
 import { ROLE_LABELS } from '@/lib/logic/constants'
 import { formatBillion } from '@/lib/utils/format'
@@ -32,6 +32,7 @@ export default function AdminDashboardPage() {
   const [creating, setCreating] = useState(false)
   const [loading, setLoading] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [loadingRooms, setLoadingRooms] = useState(true)
 
   // Load all rooms on mount
@@ -137,6 +138,26 @@ export default function AdminDashboardPage() {
     await signOutUser()
     useGameStore.getState().setAdmin(false)
     router.push('/login')
+  }
+
+  const handleDeleteRoom = async () => {
+    if (!selectedRoomCode) return
+    setLoading(true)
+    try {
+      await deleteRoom(selectedRoomCode)
+      // Refresh rooms list
+      const allRooms = await getAllRooms()
+      const activeRooms = allRooms
+        .filter((r) => r.status !== 'DELETED')
+        .sort((a, b) => b.createdAt - a.createdAt)
+      setRooms(activeRooms)
+      setSelectedRoomCode(activeRooms.length > 0 ? activeRooms[0].roomCode : null)
+      setDeleteDialogOpen(false)
+    } catch (error) {
+      console.error('Failed to delete room:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const roleCount = (team: TeamDocument) => Object.keys(team.roles).length
@@ -331,6 +352,39 @@ export default function AdminDashboardPage() {
                       {roomData.status === 'FINISHED' && (
                         <span className="text-white/50">게임이 종료되었습니다.</span>
                       )}
+                      {/* Delete Room Button */}
+                      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                        <DialogTrigger asChild>
+                          <button className="bg-white/10 border border-white/20 text-white/70 px-4 py-3 rounded-xl font-medium text-sm transition-all hover:bg-red-500/20 hover:border-red-500/40 hover:text-red-300">
+                            방 삭제
+                          </button>
+                        </DialogTrigger>
+                        <DialogContent className="glass border-white/10 bg-[#1a1a2e]/95">
+                          <DialogHeader>
+                            <DialogTitle className="text-white">방 삭제 확인</DialogTitle>
+                            <DialogDescription className="text-white/60">
+                              정말로 <span className="text-red-400 font-bold">{roomData.roomName}</span> 방을 삭제하시겠습니까?
+                              <br />
+                              이 작업은 되돌릴 수 없습니다.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="flex gap-3 mt-4">
+                            <button
+                              onClick={() => setDeleteDialogOpen(false)}
+                              className="flex-1 bg-white/10 border border-white/20 text-white py-2 rounded-xl font-medium transition-all hover:bg-white/20"
+                            >
+                              취소
+                            </button>
+                            <button
+                              onClick={handleDeleteRoom}
+                              disabled={loading}
+                              className="flex-1 bg-red-500/20 border border-red-500/40 text-red-300 py-2 rounded-xl font-bold transition-all hover:bg-red-500/30 disabled:opacity-50"
+                            >
+                              {loading ? '삭제 중...' : '삭제'}
+                            </button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                     </div>
                   </div>
                 </div>

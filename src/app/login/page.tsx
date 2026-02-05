@@ -25,6 +25,8 @@ export default function LoginPage() {
   const setRoom = useGameStore((s) => s.setRoom)
   const authInitialized = useRef(false)
 
+  const [authError, setAuthError] = useState('')
+
   // First authenticate anonymously, then fetch rooms
   useEffect(() => {
     const initAndFetchRooms = async () => {
@@ -44,8 +46,17 @@ export default function LoginPage() {
           (room) => room.status === 'WAITING' || room.status === 'PLAYING'
         )
         setRooms(availableRooms)
-      } catch (err) {
+        setAuthError('')
+      } catch (err: unknown) {
         console.error('Failed to fetch rooms:', err)
+        const errorMessage = err instanceof Error ? err.message : String(err)
+        if (errorMessage.includes('auth/admin-restricted-operation')) {
+          setAuthError('Firebase 익명 인증이 비활성화되어 있습니다. 관리자에게 문의하세요.')
+        } else if (errorMessage.includes('permission-denied')) {
+          setAuthError('Firestore 접근 권한이 없습니다.')
+        } else {
+          setAuthError(`방 목록을 불러올 수 없습니다: ${errorMessage}`)
+        }
       } finally {
         setLoadingRooms(false)
       }
@@ -116,6 +127,10 @@ export default function LoginPage() {
               {loadingRooms ? (
                 <div className="text-sm text-white/50 py-6 text-center">
                   방 목록을 불러오는 중...
+                </div>
+              ) : authError ? (
+                <div className="text-sm text-red-400 py-6 text-center border border-red-500/20 rounded-xl bg-red-500/10">
+                  {authError}
                 </div>
               ) : rooms.length === 0 ? (
                 <div className="text-sm text-white/50 py-6 text-center border border-white/10 rounded-xl bg-white/[0.02]">
