@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { signInAnonymously, updateProfile } from 'firebase/auth'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { signInAnonymouslyWithNickname } from '@/lib/firebase/auth'
+import { getAuthInstance } from '@/lib/firebase/config'
 import { getAllRooms, getRoomData } from '@/lib/firebase/firestore'
 import { useGameStore } from '@/lib/stores/game-store'
 import type { RoomDocument } from '@/lib/types/game'
@@ -22,10 +23,22 @@ export default function LoginPage() {
   const router = useRouter()
   const setUser = useGameStore((s) => s.setUser)
   const setRoom = useGameStore((s) => s.setRoom)
+  const authInitialized = useRef(false)
 
+  // First authenticate anonymously, then fetch rooms
   useEffect(() => {
-    const fetchRooms = async () => {
+    const initAndFetchRooms = async () => {
       try {
+        // Authenticate anonymously first to access Firestore
+        if (!authInitialized.current) {
+          const auth = getAuthInstance()
+          if (!auth.currentUser) {
+            await signInAnonymously(auth)
+          }
+          authInitialized.current = true
+        }
+
+        // Now fetch rooms
         const allRooms = await getAllRooms()
         const availableRooms = allRooms.filter(
           (room) => room.status === 'WAITING' || room.status === 'PLAYING'
@@ -37,7 +50,7 @@ export default function LoginPage() {
         setLoadingRooms(false)
       }
     }
-    fetchRooms()
+    initAndFetchRooms()
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,10 +74,17 @@ export default function LoginPage() {
         return
       }
 
-      const user = await signInAnonymouslyWithNickname(nickname.trim())
-      setUser(user.uid, nickname.trim())
-      setRoom(selectedRoom.roomCode, room.status, room.currentRound, room.marketConfig)
-      router.push('/lobby')
+      // Update profile with nickname (already authenticated anonymously)
+      const auth = getAuthInstance()
+      const user = auth.currentUser
+      if (user) {
+        await updateProfile(user, { displayName: nickname.trim() })
+        setUser(user.uid, nickname.trim())
+        setRoom(selectedRoom.roomCode, room.status, room.currentRound, room.marketConfig)
+        router.push('/lobby')
+      } else {
+        setError('인증에 실패했습니다. 페이지를 새로고침하세요.')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '입장에 실패했습니다.')
     } finally {
