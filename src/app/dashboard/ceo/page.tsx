@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { useGameStore } from '@/lib/stores/game-store'
 import { useTeamStore } from '@/lib/stores/team-store'
 import { useCashFlow } from '@/lib/hooks/use-cash-flow'
@@ -147,10 +147,10 @@ export default function CeoPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>최종 승인 확인</DialogTitle>
+              <DialogDescription>
+                승인하시겠습니까? 이후 이번 기수의 의사결정을 수정할 수 없습니다.
+              </DialogDescription>
             </DialogHeader>
-            <p className="text-sm text-muted-foreground">
-              승인하시겠습니까? 이후 이번 기수의 의사결정을 수정할 수 없습니다.
-            </p>
             <div className="flex gap-3 mt-4">
               <Button variant="outline" onClick={() => setConfirmOpen(false)} className="flex-1">
                 취소

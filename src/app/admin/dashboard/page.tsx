@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
 import { createRoom, subscribeToRoom, getAllTeams, getAllRooms } from '@/lib/firebase/firestore'
 import { signOutUser } from '@/lib/firebase/auth'
@@ -185,6 +185,9 @@ export default function AdminDashboardPage() {
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>새 게임 방 만들기</DialogTitle>
+                    <DialogDescription>
+                      방 이름과 참여 팀 수를 설정하여 새로운 게임 방을 생성합니다.
+                    </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
                     <div>
