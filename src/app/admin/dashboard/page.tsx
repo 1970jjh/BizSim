@@ -3,13 +3,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Separator } from '@/components/ui/separator'
 import { createRoom, subscribeToRoom, getAllTeams, getAllRooms } from '@/lib/firebase/firestore'
 import { signOutUser } from '@/lib/firebase/auth'
 import { ROLE_LABELS } from '@/lib/logic/constants'
@@ -17,10 +14,10 @@ import { formatBillion } from '@/lib/utils/format'
 import { useGameStore } from '@/lib/stores/game-store'
 import type { RoomDocument, TeamDocument, Role, RoundNumber, LeaderboardEntry } from '@/lib/types/game'
 
-const STATUS_LABELS: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-  WAITING: { label: '대기중', variant: 'secondary' },
-  PLAYING: { label: '진행중', variant: 'default' },
-  FINISHED: { label: '종료', variant: 'outline' },
+const STATUS_CONFIG: Record<string, { label: string; bgColor: string; textColor: string }> = {
+  WAITING: { label: '대기중', bgColor: 'rgba(0, 206, 201, 0.2)', textColor: '#81ecec' },
+  PLAYING: { label: '진행중', bgColor: 'rgba(108, 92, 231, 0.3)', textColor: '#a29bfe' },
+  FINISHED: { label: '종료', bgColor: 'rgba(255, 255, 255, 0.05)', textColor: '#aaa' },
 }
 
 export default function AdminDashboardPage() {
@@ -42,11 +39,14 @@ export default function AdminDashboardPage() {
     const loadRooms = async () => {
       try {
         const allRooms = await getAllRooms()
-        // Filter out deleted rooms and sort by createdAt descending
         const activeRooms = allRooms
           .filter((r) => r.status !== 'DELETED')
           .sort((a, b) => b.createdAt - a.createdAt)
         setRooms(activeRooms)
+        // Auto-select first room if available
+        if (activeRooms.length > 0 && !selectedRoomCode) {
+          setSelectedRoomCode(activeRooms[0].roomCode)
+        }
       } catch (error) {
         console.error('Failed to load rooms:', error)
       } finally {
@@ -87,7 +87,6 @@ export default function AdminDashboardPage() {
     setCreating(true)
     try {
       const code = await createRoom(roomName.trim(), teamCount)
-      // Refresh rooms list and select the new room
       const allRooms = await getAllRooms()
       const activeRooms = allRooms
         .filter((r) => r.status !== 'DELETED')
@@ -143,272 +142,297 @@ export default function AdminDashboardPage() {
   const roleCount = (team: TeamDocument) => Object.keys(team.roles).length
 
   const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString('ko-KR', {
+    return new Date(timestamp).toLocaleDateString('ko-KR', {
       year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+      month: '2-digit',
+      day: '2-digit',
     })
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+    <div className="min-h-screen flex flex-col">
+      {/* Grid Layout */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5 p-5">
+        {/* Header - spans full width */}
+        <header className="col-span-full glass flex justify-between items-center px-8 py-4">
           <div>
-            <h1 className="text-2xl font-bold">BizSim 관리자</h1>
-            <p className="text-sm text-muted-foreground">게임 방 생성 및 진행 관리</p>
+            <span className="text-sm font-bold text-[#a29bfe]">JJ CREATIVE Edu with AI</span>
+            <h1 className="text-2xl font-black gradient-text tracking-tight">BizSim 관리자</h1>
           </div>
-          <div className="flex items-center gap-4">
-            <Link href="/login" className="text-sm text-muted-foreground hover:underline">
-              학습자 화면 보기
+          <div className="flex items-center gap-3">
+            <Link href="/login">
+              <button className="bg-white/10 border border-white/20 text-white px-4 py-2 rounded-full text-sm transition-all hover:bg-white/20">
+                학습자 화면 보기
+              </button>
             </Link>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
+            <button
+              onClick={handleLogout}
+              className="bg-red-500/20 border border-red-500/30 text-white px-4 py-2 rounded-full text-sm transition-all hover:bg-red-500/30"
+            >
               로그아웃
-            </Button>
+            </button>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left: Room List */}
-          <div className="lg:col-span-1 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">게임 방 목록</h2>
-              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm">새 방 만들기</Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>새 게임 방 만들기</DialogTitle>
-                    <DialogDescription>
-                      방 이름과 참여 팀 수를 설정하여 새로운 게임 방을 생성합니다.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label>방 이름</Label>
-                      <Input
-                        value={roomName}
-                        onChange={(e) => setRoomName(e.target.value)}
-                        placeholder="예: 2024 경영전략 과정"
-                      />
-                    </div>
-                    <div>
-                      <Label>참여 팀 수 (2~12)</Label>
-                      <Input
-                        type="number"
-                        min={2}
-                        max={12}
-                        value={teamCount}
-                        onChange={(e) => setTeamCount(Number(e.target.value))}
-                      />
-                    </div>
-                    <Button onClick={handleCreate} disabled={creating || !roomName.trim()} className="w-full">
-                      {creating ? '생성 중...' : '방 생성'}
-                    </Button>
+        {/* Sidebar - Room List */}
+        <aside className="glass p-5 flex flex-col overflow-hidden">
+          <div className="flex justify-between items-center mb-5">
+            <h2 className="text-lg font-bold">게임 방 목록</h2>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <button className="btn-gradient text-white px-4 py-2 rounded-lg text-sm font-bold transition-transform hover:-translate-y-0.5">
+                  새 방 만들기
+                </button>
+              </DialogTrigger>
+              <DialogContent className="glass border-white/10 bg-[#1a1a2e]/95">
+                <DialogHeader>
+                  <DialogTitle className="text-white">새 게임 방 만들기</DialogTitle>
+                  <DialogDescription className="text-white/60">
+                    방 이름과 참여 팀 수를 설정하여 새로운 게임 방을 생성합니다.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 mt-4">
+                  <div>
+                    <Label className="text-white/70">방 이름</Label>
+                    <Input
+                      value={roomName}
+                      onChange={(e) => setRoomName(e.target.value)}
+                      placeholder="예: 2024 경영전략 과정"
+                      className="bg-white/5 border-white/10 text-white placeholder:text-white/30 mt-1"
+                    />
                   </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            {loadingRooms ? (
-              <Card>
-                <CardContent className="py-8 text-center text-muted-foreground">
-                  방 목록을 불러오는 중...
-                </CardContent>
-              </Card>
-            ) : rooms.length === 0 ? (
-              <Card>
-                <CardContent className="py-8 text-center text-muted-foreground">
-                  생성된 방이 없습니다.
-                  <br />
-                  새 방을 만들어 시작하세요.
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-2">
-                {rooms.map((room) => (
-                  <Card
-                    key={room.roomCode}
-                    className={`cursor-pointer transition-colors hover:bg-slate-50 ${
-                      selectedRoomCode === room.roomCode ? 'ring-2 ring-primary bg-slate-50' : ''
-                    }`}
-                    onClick={() => setSelectedRoomCode(room.roomCode)}
+                  <div>
+                    <Label className="text-white/70">참여 팀 수 (2~12)</Label>
+                    <Input
+                      type="number"
+                      min={2}
+                      max={12}
+                      value={teamCount}
+                      onChange={(e) => setTeamCount(Number(e.target.value))}
+                      className="bg-white/5 border-white/10 text-white mt-1"
+                    />
+                  </div>
+                  <Button
+                    onClick={handleCreate}
+                    disabled={creating || !roomName.trim()}
+                    className="w-full btn-gradient border-0 text-white font-bold"
                   >
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-lg font-bold tracking-wider">
-                              {room.roomCode}
-                            </span>
-                            <Badge variant={STATUS_LABELS[room.status]?.variant ?? 'secondary'}>
-                              {STATUS_LABELS[room.status]?.label ?? room.status}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground truncate mt-1">
-                            {room.roomName}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {formatDate(room.createdAt)} · {room.totalTeams}팀
-                          </p>
-                        </div>
-                        {room.status === 'PLAYING' && (
-                          <Badge variant="outline">{room.currentRound}기</Badge>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                    {creating ? '생성 중...' : '방 생성'}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <div className="flex-1 overflow-y-auto space-y-3">
+            {loadingRooms ? (
+              <div className="text-center py-8 text-white/50">방 목록을 불러오는 중...</div>
+            ) : rooms.length === 0 ? (
+              <div className="text-center py-8 text-white/50">
+                생성된 방이 없습니다.
+                <br />
+                새 방을 만들어 시작하세요.
               </div>
+            ) : (
+              rooms.map((room) => (
+                <div
+                  key={room.roomCode}
+                  onClick={() => setSelectedRoomCode(room.roomCode)}
+                  className={`p-4 rounded-xl cursor-pointer transition-all ${
+                    selectedRoomCode === room.roomCode
+                      ? 'glass-active'
+                      : 'bg-white/[0.03] border border-white/[0.05] hover:bg-white/10'
+                  }`}
+                >
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-black text-lg tracking-widest">{room.roomCode}</span>
+                    <span
+                      className="text-xs px-2 py-0.5 rounded-full"
+                      style={{
+                        background: STATUS_CONFIG[room.status]?.bgColor,
+                        color: STATUS_CONFIG[room.status]?.textColor,
+                      }}
+                    >
+                      {STATUS_CONFIG[room.status]?.label}
+                    </span>
+                  </div>
+                  <div className="text-sm text-white/70">{room.roomName}</div>
+                  <div className="flex justify-between text-xs text-white/40 mt-2">
+                    <span>{formatDate(room.createdAt)}</span>
+                    <span>{room.totalTeams}팀</span>
+                  </div>
+                </div>
+              ))
             )}
           </div>
+        </aside>
 
-          {/* Right: Room Details */}
-          <div className="lg:col-span-2 space-y-6">
-            {!selectedRoomCode ? (
-              <Card>
-                <CardContent className="py-16 text-center text-muted-foreground">
-                  왼쪽 목록에서 관리할 방을 선택하세요.
-                </CardContent>
-              </Card>
-            ) : (
-              <>
-                {/* Room Info */}
-                <Card>
-                  <CardHeader className="pb-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardDescription>방 코드</CardDescription>
-                        <CardTitle className="text-4xl font-mono tracking-widest">
-                          {selectedRoomCode}
-                        </CardTitle>
-                      </div>
-                      <div className="text-right">
-                        <Badge variant={STATUS_LABELS[roomData?.status ?? 'WAITING']?.variant}>
-                          {STATUS_LABELS[roomData?.status ?? 'WAITING']?.label}
-                        </Badge>
-                        {roomData?.status === 'PLAYING' && (
-                          <p className="text-2xl font-bold mt-1">{roomData.currentRound}기</p>
-                        )}
-                      </div>
+        {/* Main Content */}
+        <main className="flex flex-col gap-5 overflow-y-auto">
+          {!selectedRoomCode || !roomData ? (
+            <div className="glass flex-1 flex items-center justify-center text-white/50">
+              왼쪽 목록에서 관리할 방을 선택하세요.
+            </div>
+          ) : (
+            <>
+              {/* Room Info Card */}
+              <section className="glass p-8 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
+                <div className="relative z-10 flex justify-between items-center">
+                  <div>
+                    <div className="text-sm text-white/60 mb-1">Current Room Code</div>
+                    <div className="text-6xl font-black leading-none mb-2 text-shadow-lg">
+                      {selectedRoomCode}
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground mb-4">{roomData?.roomName}</p>
-                    <Separator className="my-4" />
-                    <div className="flex gap-3 flex-wrap">
-                      {roomData?.status === 'WAITING' && (
-                        <Button onClick={() => handleStartRound(1)} disabled={loading}>
+                    <div className="text-xl font-light text-white/80">{roomData.roomName}</div>
+                  </div>
+                  <div className="text-right">
+                    <div
+                      className="inline-block px-4 py-1.5 rounded-full text-sm mb-4 border"
+                      style={{
+                        background: STATUS_CONFIG[roomData.status]?.bgColor,
+                        borderColor: STATUS_CONFIG[roomData.status]?.textColor + '66',
+                        color: STATUS_CONFIG[roomData.status]?.textColor,
+                      }}
+                    >
+                      {STATUS_CONFIG[roomData.status]?.label}
+                      {roomData.status === 'PLAYING' && ` · ${roomData.currentRound}기`}
+                    </div>
+                    <div className="flex gap-3 justify-end">
+                      {roomData.status === 'WAITING' && (
+                        <button
+                          onClick={() => handleStartRound(1)}
+                          disabled={loading}
+                          className="bg-white text-gray-900 px-6 py-3 rounded-xl font-extrabold text-lg shadow-lg transition-transform hover:scale-105 disabled:opacity-50"
+                        >
                           {loading ? '처리 중...' : '1기 시작'}
-                        </Button>
+                        </button>
                       )}
-                      {roomData?.status === 'PLAYING' && (
+                      {roomData.status === 'PLAYING' && (
                         <>
-                          <Button variant="destructive" onClick={handleEndRound} disabled={loading}>
-                            강제 마감 & 결산
-                          </Button>
+                          <button
+                            onClick={handleEndRound}
+                            disabled={loading}
+                            className="bg-red-500/20 border border-red-500/40 text-red-300 px-5 py-3 rounded-xl font-bold transition-all hover:bg-red-500/30 disabled:opacity-50"
+                          >
+                            강제 마감
+                          </button>
                           {roomData.currentRound < 4 && (
-                            <Button
+                            <button
                               onClick={() => handleStartRound((roomData.currentRound + 1) as RoundNumber)}
                               disabled={loading}
+                              className="bg-white text-gray-900 px-6 py-3 rounded-xl font-extrabold shadow-lg transition-transform hover:scale-105 disabled:opacity-50"
                             >
                               {roomData.currentRound + 1}기 시작
-                            </Button>
+                            </button>
                           )}
                         </>
                       )}
-                      {roomData?.status === 'FINISHED' && (
-                        <p className="text-muted-foreground">게임이 종료되었습니다.</p>
+                      {roomData.status === 'FINISHED' && (
+                        <span className="text-white/50">게임이 종료되었습니다.</span>
                       )}
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
+              </section>
 
-                {/* Teams Status */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>팀 현황</CardTitle>
-                    <CardDescription>
-                      학습자들에게 방 코드 <span className="font-mono font-bold">{selectedRoomCode}</span>를 공유하세요
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                      {teams.map((team) => (
-                        <Card key={team.id} className="border">
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-lg flex justify-between">
-                              <span>{team.teamName}</span>
-                              <Badge variant={roleCount(team) === 6 ? 'default' : 'secondary'}>
-                                {roleCount(team)}/6
-                              </Badge>
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-1 text-sm">
-                              {(Object.keys(ROLE_LABELS) as Role[]).map((role) => (
-                                <div key={role} className="flex justify-between">
-                                  <span>{ROLE_LABELS[role]}</span>
-                                  <span
-                                    className={team.roles[role] ? 'text-green-600' : 'text-gray-400'}
-                                  >
-                                    {team.roles[role]?.nickname ?? '빈 자리'}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+              {/* Teams Section */}
+              <section className="glass p-8 flex-1">
+                <div className="mb-5">
+                  <h3 className="text-xl font-bold mb-1">팀 현황</h3>
+                  <p className="text-sm text-white/60">
+                    학습자들에게 방 코드{' '}
+                    <span className="text-[#a29bfe] font-bold">{selectedRoomCode}</span>를
+                    공유하세요
+                  </p>
+                </div>
 
-                {/* Leaderboard */}
-                {roomData?.leaderboard && roomData.leaderboard.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>리더보드</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b">
-                              <th className="text-left p-2">순위</th>
-                              <th className="text-left p-2">팀</th>
-                              <th className="text-right p-2">누적 순이익</th>
-                              <th className="text-right p-2">자산 가치</th>
-                              <th className="text-right p-2">총점</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {(roomData.leaderboard as LeaderboardEntry[]).map((entry) => (
-                              <tr key={entry.teamId} className="border-b">
-                                <td className="p-2 font-bold">{entry.rank}위</td>
-                                <td className="p-2">{entry.teamName}</td>
-                                <td className="p-2 text-right">{formatBillion(entry.cumulativeNetProfit)}</td>
-                                <td className="p-2 text-right">{formatBillion(entry.totalAssetValue)}</td>
-                                <td className="p-2 text-right font-bold">{formatBillion(entry.score)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                  {teams.map((team) => (
+                    <div
+                      key={team.id}
+                      className="bg-white/5 border border-white/10 rounded-2xl p-5 transition-all hover:bg-white/[0.08] hover:-translate-y-1"
+                    >
+                      <div className="flex justify-between items-center pb-3 mb-4 border-b border-white/10">
+                        <h4 className="text-lg font-bold">{team.teamName}</h4>
+                        <span className="text-xs bg-black/30 px-2 py-1 rounded-lg">
+                          {roleCount(team)}/6
+                        </span>
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </>
-            )}
-          </div>
-        </div>
+                      <div className="space-y-2">
+                        {(Object.keys(ROLE_LABELS) as Role[]).map((role) => (
+                          <div key={role} className="flex justify-between text-sm">
+                            <span className="text-white/60">{ROLE_LABELS[role]}</span>
+                            <span
+                              className={
+                                team.roles[role]
+                                  ? 'text-[#55efc4]'
+                                  : 'text-white/30 italic'
+                              }
+                            >
+                              {team.roles[role]?.nickname ?? '빈 자리'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* Leaderboard */}
+              {roomData.leaderboard && roomData.leaderboard.length > 0 && (
+                <section className="glass p-8">
+                  <h3 className="text-xl font-bold mb-5">리더보드</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-white/10 text-white/60">
+                          <th className="text-left p-3">순위</th>
+                          <th className="text-left p-3">팀</th>
+                          <th className="text-right p-3">누적 순이익</th>
+                          <th className="text-right p-3">자산 가치</th>
+                          <th className="text-right p-3">총점</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(roomData.leaderboard as LeaderboardEntry[]).map((entry, idx) => (
+                          <tr
+                            key={entry.teamId}
+                            className={`border-b border-white/5 ${
+                              idx === 0 ? 'bg-yellow-500/10' : ''
+                            }`}
+                          >
+                            <td className="p-3 font-bold">
+                              {entry.rank === 1 && '🏆 '}
+                              {entry.rank}위
+                            </td>
+                            <td className="p-3">{entry.teamName}</td>
+                            <td className="p-3 text-right text-[#81ecec]">
+                              {formatBillion(entry.cumulativeNetProfit)}
+                            </td>
+                            <td className="p-3 text-right text-[#a29bfe]">
+                              {formatBillion(entry.totalAssetValue)}
+                            </td>
+                            <td className="p-3 text-right font-bold text-white">
+                              {formatBillion(entry.score)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
+            </>
+          )}
+        </main>
       </div>
+
+      {/* Footer */}
+      <footer className="text-center py-4 text-sm text-white/30">
+        JJ CREATIVE Edu with AI &copy; 2026 All Rights Reserved.
+      </footer>
     </div>
   )
 }

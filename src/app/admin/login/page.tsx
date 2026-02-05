@@ -3,10 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
 import { signInAdmin } from '@/lib/firebase/auth'
 import { useGameStore } from '@/lib/stores/game-store'
 
@@ -37,56 +35,74 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">
+        {/* Brand */}
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-white mb-2">BizSim</h1>
-          <p className="text-slate-400">관리자 로그인</p>
+          <span className="text-sm font-bold text-[#a29bfe]">JJ CREATIVE Edu with AI</span>
+          <h1 className="text-5xl font-black gradient-text tracking-tight mt-1">BizSim</h1>
+          <p className="text-white/60 mt-2">관리자 로그인</p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>강사 로그인</CardTitle>
-            <CardDescription>등록된 관리자 계정으로 로그인합니다</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">이메일</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="admin@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">비밀번호</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="비밀번호 입력"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
-              {error && <p className="text-sm text-red-500">{error}</p>}
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? '로그인 중...' : '로그인'}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+        {/* Login Card */}
+        <div className="glass p-8">
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-white">강사 로그인</h2>
+            <p className="text-sm text-white/60 mt-1">등록된 관리자 계정으로 로그인합니다</p>
+          </div>
 
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-white/70">이메일</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="admin@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/30 h-12"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-white/70">비밀번호</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="비밀번호 입력"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/30 h-12"
+              />
+            </div>
+
+            {error && (
+              <p className="text-sm text-red-400 bg-red-500/10 p-3 rounded-lg">{error}</p>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full btn-gradient text-white py-3 rounded-xl font-extrabold text-lg shadow-lg transition-all hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
+            >
+              {loading ? '로그인 중...' : '로그인'}
+            </button>
+          </form>
+        </div>
+
+        {/* Back to Student Login */}
         <div className="text-center">
           <Link
             href="/login"
-            className="text-sm text-slate-400 hover:text-slate-300 underline-offset-4 hover:underline"
+            className="text-sm text-white/50 hover:text-white/80 underline-offset-4 hover:underline transition-colors"
           >
             학습자로 입장하기
           </Link>
         </div>
+
+        {/* Footer */}
+        <footer className="text-center text-sm text-white/30 pt-4">
+          JJ CREATIVE Edu with AI &copy; 2026 All Rights Reserved.
+        </footer>
       </div>
     </div>
   )
