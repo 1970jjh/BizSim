@@ -2,7 +2,7 @@ export type Role = 'ceo' | 'cfo' | 'cpo' | 'cro' | 'cmo' | 'cho'
 
 export type VehicleType = 'gasoline' | 'diesel' | 'hybrid' | 'ev' | 'hydrogen'
 
-export type RoomStatus = 'WAITING' | 'PLAYING' | 'FINISHED'
+export type RoomStatus = 'WAITING' | 'PLAYING' | 'FINISHED' | 'DELETED'
 
 export type RoundNumber = 1 | 2 | 3 | 4
 
