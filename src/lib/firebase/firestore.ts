@@ -267,9 +267,11 @@ export async function initRoundForAllTeams(
   const teams = await getAllTeams(roomCode)
   const roundId = `round_${round}`
   for (const team of teams) {
+    // Create a fresh copy of default decisions for each team
+    const freshDecisions: RoundDecisions = JSON.parse(JSON.stringify(DEFAULT_ROUND_DECISIONS))
     await setDoc(
       doc(getDb(), 'rooms', roomCode, 'teams', team.id, 'rounds', roundId),
-      DEFAULT_ROUND_DECISIONS
+      freshDecisions
     )
   }
 }

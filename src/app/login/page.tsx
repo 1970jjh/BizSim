@@ -161,7 +161,7 @@ export default function LoginPage() {
                         </span>
                       </div>
                       <div className="text-xs text-white/40 mt-1">
-                        방 코드: {room.roomCode} · 팀 수: {room.totalTeams}개
+                        팀 수: {room.totalTeams}개
                       </div>
                     </div>
                   ))}

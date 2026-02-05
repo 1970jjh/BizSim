@@ -56,12 +56,11 @@ export default function LobbyPage() {
   useEffect(() => {
     if (!roomCode) return
     const unsub = subscribeToRoom(roomCode, (data) => {
-      if (data.status === 'PLAYING') {
+      setRoomData(data)
+      if (data.status === 'PLAYING' && myRoles.length > 0) {
         // Navigate to first selected role's dashboard
-        if (myRoles.length > 0) {
-          setTeam(myRoles[0].teamId)
-          setRole(myRoles[0].role)
-        }
+        setTeam(myRoles[0].teamId)
+        setRole(myRoles[0].role)
         router.push('/dashboard/overview')
       }
     })
@@ -110,11 +109,33 @@ export default function LobbyPage() {
           <p className="text-white/70 mt-3 text-lg">
             {roomData?.roomName || '방 이름 로딩 중...'}
           </p>
-          {myRoles.length > 0 && (
+          {roomData?.status === 'PLAYING' ? (
+            myRoles.length > 0 ? (
+              <div className="mt-4">
+                <p className="text-[#55efc4] text-sm mb-3">
+                  {myRoles.length}개 직무 선택됨 - 게임이 진행 중입니다!
+                </p>
+                <button
+                  onClick={() => {
+                    setTeam(myRoles[0].teamId)
+                    setRole(myRoles[0].role)
+                    router.push('/dashboard/overview')
+                  }}
+                  className="bg-white text-gray-900 px-8 py-3 rounded-xl font-extrabold text-lg shadow-lg transition-all hover:scale-105"
+                >
+                  대시보드로 이동
+                </button>
+              </div>
+            ) : (
+              <p className="text-yellow-400 text-sm mt-2">
+                게임이 시작되었습니다! 직무를 선택하고 참여하세요.
+              </p>
+            )
+          ) : myRoles.length > 0 ? (
             <p className="text-[#55efc4] text-sm mt-2">
               {myRoles.length}개 직무 선택됨 - 게임 시작을 기다리는 중...
             </p>
-          )}
+          ) : null}
           {error && (
             <p className="text-red-400 mt-2 bg-red-500/10 inline-block px-4 py-2 rounded-lg">
               {error}

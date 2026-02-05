@@ -266,7 +266,7 @@ export default function AdminDashboardPage() {
                   }`}
                 >
                   <div className="flex justify-between items-center mb-2">
-                    <span className="font-black text-lg tracking-widest">{room.roomCode}</span>
+                    <span className="font-bold text-lg">{room.roomName}</span>
                     <span
                       className="text-xs px-2 py-0.5 rounded-full"
                       style={{
@@ -277,7 +277,6 @@ export default function AdminDashboardPage() {
                       {STATUS_CONFIG[room.status]?.label}
                     </span>
                   </div>
-                  <div className="text-sm text-white/70">{room.roomName}</div>
                   <div className="flex justify-between text-xs text-white/40 mt-2">
                     <span>{formatDate(room.createdAt)}</span>
                     <span>{room.totalTeams}팀</span>
@@ -301,11 +300,10 @@ export default function AdminDashboardPage() {
                 <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
                 <div className="relative z-10 flex justify-between items-center">
                   <div>
-                    <div className="text-sm text-white/60 mb-1">Current Room Code</div>
-                    <div className="text-6xl font-black leading-none mb-2 text-shadow-lg">
-                      {selectedRoomCode}
+                    <div className="text-5xl font-black leading-none mb-2 text-shadow-lg gradient-text">
+                      {roomData.roomName}
                     </div>
-                    <div className="text-xl font-light text-white/80">{roomData.roomName}</div>
+                    <div className="text-lg text-white/60">{roomData.totalTeams}개 팀 참여</div>
                   </div>
                   <div className="text-right">
                     <div
@@ -395,9 +393,7 @@ export default function AdminDashboardPage() {
                 <div className="mb-5">
                   <h3 className="text-xl font-bold mb-1">팀 현황</h3>
                   <p className="text-sm text-white/60">
-                    학습자들에게 방 코드{' '}
-                    <span className="text-[#a29bfe] font-bold">{selectedRoomCode}</span>를
-                    공유하세요
+                    학습자들은 로그인 화면에서 방 이름을 선택하여 입장합니다
                   </p>
                 </div>
 
