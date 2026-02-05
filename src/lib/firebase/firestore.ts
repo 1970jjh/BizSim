@@ -82,8 +82,9 @@ export async function joinTeam(
     }
 
     const teamData = teamSnap.data() as TeamDocument
-    if (teamData.roles[role]) {
-      throw new Error('이미 선택된 직무입니다.')
+    // Allow if role is not taken OR if the same user is reselecting
+    if (teamData.roles[role] && teamData.roles[role].uid !== userId) {
+      throw new Error('이미 다른 사람이 선택한 직무입니다.')
     }
 
     transaction.update(teamRef, {
