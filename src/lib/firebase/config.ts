@@ -16,27 +16,31 @@ function getApp(): FirebaseApp {
   return getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
 }
 
+let _app: FirebaseApp | undefined
 let _auth: Auth | undefined
 let _db: Firestore | undefined
 let _storage: FirebaseStorage | undefined
 
-export const auth: Auth = new Proxy({} as Auth, {
-  get(_, prop) {
-    if (!_auth) _auth = getAuth(getApp())
-    return Reflect.get(_auth, prop)
-  },
-})
+function ensureApp(): FirebaseApp {
+  if (!_app) {
+    _app = getApp()
+  }
+  return _app
+}
 
-export const db: Firestore = new Proxy({} as Firestore, {
-  get(_, prop) {
-    if (!_db) _db = getFirestore(getApp())
-    return Reflect.get(_db, prop)
-  },
-})
+// Getter functions for lazy initialization - use these for Firestore operations
+export function getAuthInstance(): Auth {
+  if (!_auth) _auth = getAuth(ensureApp())
+  return _auth
+}
 
-export const storage: FirebaseStorage = new Proxy({} as FirebaseStorage, {
-  get(_, prop) {
-    if (!_storage) _storage = getStorage(getApp())
-    return Reflect.get(_storage, prop)
-  },
-})
+export function getDb(): Firestore {
+  if (!_db) _db = getFirestore(ensureApp())
+  return _db
+}
+
+export function getStorageInstance(): FirebaseStorage {
+  if (!_storage) _storage = getStorage(ensureApp())
+  return _storage
+}
+

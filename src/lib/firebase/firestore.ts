@@ -9,7 +9,7 @@ import {
   runTransaction,
   type Unsubscribe,
 } from 'firebase/firestore'
-import { db } from './config'
+import { getDb } from './config'
 import type {
   Role,
   RoomDocument,
@@ -46,7 +46,7 @@ export async function createRoom(
     createdAt: Date.now(),
   }
 
-  await setDoc(doc(db, 'rooms', roomCode), roomData)
+  await setDoc(doc(getDb(), 'rooms', roomCode), roomData)
 
   for (let i = 1; i <= totalTeams; i++) {
     const teamId = `team_${i}`
@@ -56,9 +56,9 @@ export async function createRoom(
       roles: {},
       cumulativeNetProfit: 0,
     }
-    await setDoc(doc(db, 'rooms', roomCode, 'teams', teamId), teamData)
+    await setDoc(doc(getDb(), 'rooms', roomCode, 'teams', teamId), teamData)
     await setDoc(
-      doc(db, 'rooms', roomCode, 'teams', teamId, 'rounds', 'round_1'),
+      doc(getDb(), 'rooms', roomCode, 'teams', teamId, 'rounds', 'round_1'),
       DEFAULT_ROUND_DECISIONS
     )
   }
@@ -73,9 +73,9 @@ export async function joinTeam(
   userId: string,
   nickname: string
 ): Promise<void> {
-  const teamRef = doc(db, 'rooms', roomCode, 'teams', teamId)
+  const teamRef = doc(getDb(), 'rooms', roomCode, 'teams', teamId)
 
-  await runTransaction(db, async (transaction) => {
+  await runTransaction(getDb(), async (transaction) => {
     const teamSnap = await transaction.get(teamRef)
     if (!teamSnap.exists()) {
       throw new Error('팀을 찾을 수 없습니다.')
@@ -95,7 +95,7 @@ export async function joinTeam(
 export async function getRoomData(
   roomCode: string
 ): Promise<RoomDocument | null> {
-  const snap = await getDoc(doc(db, 'rooms', roomCode))
+  const snap = await getDoc(doc(getDb(), 'rooms', roomCode))
   return snap.exists() ? (snap.data() as RoomDocument) : null
 }
 
@@ -103,7 +103,7 @@ export async function getTeamData(
   roomCode: string,
   teamId: string
 ): Promise<TeamDocument | null> {
-  const snap = await getDoc(doc(db, 'rooms', roomCode, 'teams', teamId))
+  const snap = await getDoc(doc(getDb(), 'rooms', roomCode, 'teams', teamId))
   return snap.exists() ? (snap.data() as TeamDocument) : null
 }
 
@@ -113,7 +113,7 @@ export async function getRoundData(
   roundId: string
 ): Promise<RoundDecisions | null> {
   const snap = await getDoc(
-    doc(db, 'rooms', roomCode, 'teams', teamId, 'rounds', roundId)
+    doc(getDb(), 'rooms', roomCode, 'teams', teamId, 'rounds', roundId)
   )
   return snap.exists() ? (snap.data() as RoundDecisions) : null
 }
@@ -126,7 +126,7 @@ export async function updateRoundDecision(
   value: unknown
 ): Promise<void> {
   const roundRef = doc(
-    db,
+    getDb(),
     'rooms',
     roomCode,
     'teams',
@@ -143,7 +143,7 @@ export async function submitRound(
   roundId: string
 ): Promise<void> {
   const roundRef = doc(
-    db,
+    getDb(),
     'rooms',
     roomCode,
     'teams',
@@ -158,7 +158,7 @@ export function subscribeToRoom(
   roomCode: string,
   callback: (data: RoomDocument) => void
 ): Unsubscribe {
-  return onSnapshot(doc(db, 'rooms', roomCode), (snap) => {
+  return onSnapshot(doc(getDb(), 'rooms', roomCode), (snap) => {
     if (snap.exists()) {
       callback(snap.data() as RoomDocument)
     }
@@ -171,7 +171,7 @@ export function subscribeToTeam(
   callback: (data: TeamDocument) => void
 ): Unsubscribe {
   return onSnapshot(
-    doc(db, 'rooms', roomCode, 'teams', teamId),
+    doc(getDb(), 'rooms', roomCode, 'teams', teamId),
     (snap) => {
       if (snap.exists()) {
         callback(snap.data() as TeamDocument)
@@ -187,7 +187,7 @@ export function subscribeToRound(
   callback: (data: RoundDecisions) => void
 ): Unsubscribe {
   return onSnapshot(
-    doc(db, 'rooms', roomCode, 'teams', teamId, 'rounds', roundId),
+    doc(getDb(), 'rooms', roomCode, 'teams', teamId, 'rounds', roundId),
     (snap) => {
       if (snap.exists()) {
         callback(snap.data() as RoundDecisions)
@@ -199,7 +199,7 @@ export function subscribeToRound(
 export async function getAllTeams(
   roomCode: string
 ): Promise<Array<TeamDocument & { id: string }>> {
-  const snap = await getDocs(collection(db, 'rooms', roomCode, 'teams'))
+  const snap = await getDocs(collection(getDb(), 'rooms', roomCode, 'teams'))
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as TeamDocument) }))
 }
 
@@ -208,7 +208,7 @@ export async function updateRoomRound(
   round: RoundNumber
 ): Promise<void> {
   const config = ROUND_CONFIGS[round]
-  await updateDoc(doc(db, 'rooms', roomCode), {
+  await updateDoc(doc(getDb(), 'rooms', roomCode), {
     currentRound: round,
     marketConfig: config,
     marketDemand: 0, // will be recalculated
@@ -219,7 +219,7 @@ export async function updateRoomStatus(
   roomCode: string,
   status: RoomStatus
 ): Promise<void> {
-  await updateDoc(doc(db, 'rooms', roomCode), { status })
+  await updateDoc(doc(getDb(), 'rooms', roomCode), { status })
 }
 
 export async function updateTeamAssets(
@@ -228,7 +228,7 @@ export async function updateTeamAssets(
   assets: TeamAssets,
   cumulativeNetProfit: number
 ): Promise<void> {
-  await updateDoc(doc(db, 'rooms', roomCode, 'teams', teamId), {
+  await updateDoc(doc(getDb(), 'rooms', roomCode, 'teams', teamId), {
     assets,
     cumulativeNetProfit,
   })
@@ -241,7 +241,7 @@ export async function saveRoundResults(
   results: RoundResults
 ): Promise<void> {
   const roundRef = doc(
-    db,
+    getDb(),
     'rooms',
     roomCode,
     'teams',
@@ -256,7 +256,7 @@ export async function saveLeaderboard(
   roomCode: string,
   leaderboard: readonly { teamId: string; teamName: string; cumulativeNetProfit: number; totalAssetValue: number; score: number; rank: number }[]
 ): Promise<void> {
-  await updateDoc(doc(db, 'rooms', roomCode), { leaderboard })
+  await updateDoc(doc(getDb(), 'rooms', roomCode), { leaderboard })
 }
 
 export async function initRoundForAllTeams(
@@ -267,7 +267,7 @@ export async function initRoundForAllTeams(
   const roundId = `round_${round}`
   for (const team of teams) {
     await setDoc(
-      doc(db, 'rooms', roomCode, 'teams', team.id, 'rounds', roundId),
+      doc(getDb(), 'rooms', roomCode, 'teams', team.id, 'rounds', roundId),
       DEFAULT_ROUND_DECISIONS
     )
   }
@@ -276,7 +276,7 @@ export async function initRoundForAllTeams(
 export async function getAllRooms(): Promise<
   Array<RoomDocument & { roomCode: string }>
 > {
-  const snap = await getDocs(collection(db, 'rooms'))
+  const snap = await getDocs(collection(getDb(), 'rooms'))
   return snap.docs.map((d) => ({
     roomCode: d.id,
     ...(d.data() as RoomDocument),
@@ -285,5 +285,5 @@ export async function getAllRooms(): Promise<
 
 export async function deleteRoom(roomCode: string): Promise<void> {
   // Mark room as deleted (full deletion of subcollections requires Cloud Functions)
-  await updateDoc(doc(db, 'rooms', roomCode), { status: 'DELETED' as RoomStatus })
+  await updateDoc(doc(getDb(), 'rooms', roomCode), { status: 'DELETED' as RoomStatus })
 }
