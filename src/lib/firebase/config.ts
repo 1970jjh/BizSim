@@ -12,31 +12,54 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 }
 
-function getApp(): FirebaseApp {
-  return getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
-}
-
+let _app: FirebaseApp | undefined
 let _auth: Auth | undefined
 let _db: Firestore | undefined
 let _storage: FirebaseStorage | undefined
 
-export const auth: Auth = new Proxy({} as Auth, {
-  get(_, prop) {
-    if (!_auth) _auth = getAuth(getApp())
-    return Reflect.get(_auth, prop)
-  },
-})
+function getApp(): FirebaseApp {
+  if (!_app) {
+    _app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
+  }
+  return _app
+}
 
-export const db: Firestore = new Proxy({} as Firestore, {
-  get(_, prop) {
-    if (!_db) _db = getFirestore(getApp())
-    return Reflect.get(_db, prop)
-  },
-})
+export function getFirebaseAuth(): Auth {
+  if (!_auth) {
+    _auth = getAuth(getApp())
+  }
+  return _auth
+}
 
-export const storage: FirebaseStorage = new Proxy({} as FirebaseStorage, {
-  get(_, prop) {
-    if (!_storage) _storage = getStorage(getApp())
-    return Reflect.get(_storage, prop)
+export function getFirebaseDb(): Firestore {
+  if (!_db) {
+    _db = getFirestore(getApp())
+  }
+  return _db
+}
+
+export function getFirebaseStorage(): FirebaseStorage {
+  if (!_storage) {
+    _storage = getStorage(getApp())
+  }
+  return _storage
+}
+
+// Legacy exports for compatibility (lazily evaluated)
+export const auth = {
+  get current() {
+    return getFirebaseAuth()
   },
-})
+}
+
+export const db = {
+  get current() {
+    return getFirebaseDb()
+  },
+}
+
+export const storage = {
+  get current() {
+    return getFirebaseStorage()
+  },
+}
